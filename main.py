@@ -1,116 +1,177 @@
 """
 E-Hailing Fare Calculator Core Architecture
-Module Assignment: Core Architecture & Base Fare Calculation
+Integrated Version with Teammate Modules:
+- Core Base Fare Calculation (Akisha)
+- Surge Pricing & Promo Codes (Mohammad Ali Jomaa)
+- Terminal UI & Receipt Display (Jaafar Jomaa)
 """
 
 # ==========================================
-# 1. CORE FARE CALCULATION FUNCTION
+# CONSTANTS & CONFIGURATION
 # ==========================================
+WIDTH = 50          # Total width of banner/menu/receipt line
+CURRENCY = "$"      # Currency symbol
+
+SERVICES = [
+    ("1", "JustGrab / Economy", "Budget-friendly everyday rides", 3.00, 1.20),
+    ("2", "GrabCar Premium",    "Comfortable cars, top-rated drivers", 5.00, 2.00),
+    ("3", "GrabBike / Express",   "Priority pickup, fastest route", 2.00, 0.80),
+]
+
+
+def money(amount):
+    """Formats a numeric value as currency (e.g., $12.50)."""
+    return f"{CURRENCY}{amount:,.2f}"
+
+
+# ==========================================
+# 1. CORE FARE CALCULATION FUNCTION (Akisha)
+# ==========================================
+
+def get_service_rates(service_type):
+    """Helper to return (service_name, base_fee, rate_per_km) for given service_type."""
+    service_str = str(service_type).strip()
+    for s_id, s_name, s_desc, base_fee, rate_per_km in SERVICES:
+        if service_str == s_id:
+            return s_name, base_fee, rate_per_km
+    raise ValueError("Invalid service type! Please choose 1, 2, or 3.")
+
 
 def calculate_base_fare(service_type, distance):
     """
     Calculates the base fare based on chosen service type and trip distance.
     
-    Service Options:
-    1: JustGrab / Economy   -> Base: $3.00, Rate: $1.20/km
-    2: GrabCar Premium      -> Base: $5.00, Rate: $2.00/km
-    3: GrabBike / Express   -> Base: $2.00, Rate: $0.80/km
+    Returns:
+        tuple: (service_name, base_fee, distance_charge, total_base_fare)
     """
-    # --- Input Validation for Distance ---
-    # Distance must be a positive number (> 0)
     if not isinstance(distance, (int, float)) or distance <= 0:
         raise ValueError("Distance must be a positive number greater than 0.")
 
-    # Initialize variables for base fare and rate per km
-    base_fare = 0.0
-    rate_per_km = 0.0
+    s_name, base_fee, rate_per_km = get_service_rates(service_type)
+    distance_charge = round(rate_per_km * distance, 2)
+    total_base_fare = round(base_fee + distance_charge, 2)
 
-    # --- if/elif/else blocks to assign pricing according to service type ---
-    # Convert input to string or int comparison to accept options flexibily (e.g., 1 or "1")
-    service_str = str(service_type).strip()
-
-    if service_str == "1":
-        # Option 1: JustGrab / Economy
-        base_fare = 3.00
-        rate_per_km = 1.20
-    elif service_str == "2":
-        # Option 2: GrabCar Premium
-        base_fare = 5.00
-        rate_per_km = 2.00
-    elif service_str == "3":
-        # Option 3: GrabBike / Express
-        base_fare = 2.00
-        rate_per_km = 0.80
-    else:
-        # Invalid option selected
-        raise ValueError("Invalid service type! Please choose 1, 2, or 3.")
-
-    # Core Calculation: Total Base Fare = Base Fee + (Per-Km Rate * Distance)
-    total_base_fare = base_fare + (rate_per_km * distance)
-    
-    return round(total_base_fare, 2)
+    return s_name, base_fee, distance_charge, total_base_fare
 
 
 # ==========================================
-# 2. TEAMMATE PLACEHOLDER FUNCTIONS
+# 2. SURGE PRICING & PROMO CODES (Mohammad Ali Jomaa)
 # ==========================================
 
 def get_surge_multiplier(is_peak):
     """
-    [Teammate Placeholder]
     Calculates surge pricing multiplier depending on peak hours.
-    
-    Parameters:
-        is_peak (bool): True if peak hour, False otherwise.
-    
-    Returns:
-        float: Multiplier (e.g., 1.0 for normal, 1.5 for peak)
+    If it's peak hour, apply a 50% rush-hour surge (1.5x).
+    Otherwise, normal fare (1.0x).
     """
-    # TODO: Teammate to implement peak hour surge multiplier logic here.
-    pass
+    if is_peak:
+        return 1.5
+    else:
+        return 1.0
 
 
 def apply_promo_code(current_fare, promo_code):
     """
-    [Teammate Placeholder]
     Applies discount codes to the calculated fare.
+    - 'WELCOME5': $5.00 off
+    - Blank or invalid codes: $0.00 off with status message
     
-    Parameters:
-        current_fare (float): Current fare before promo.
-        promo_code (str): Discount code entered by user.
-        
     Returns:
-        float: Final fare after applying discount.
+        tuple: (new_fare, discount_amount, message)
     """
-    # TODO: Teammate to implement promo code validation and discount logic here.
-    pass
+    code = (promo_code or "").strip().upper()
 
+    if code == "WELCOME5":
+        discount = 5.00
+        message = "Promo applied: $5.00 off!"
+    elif code == "":
+        discount = 0.00
+        message = "No promo code entered."
+    else:
+        discount = 0.00
+        message = "Invalid promo code. (Try WELCOME5)"
 
-def print_receipt(service_name, distance, base_fare, surge_multiplier=1.0, final_fare=None, promo_code=None):
-    """
-    [Teammate Placeholder]
-    Displays a formatted receipt for the user.
-    
-    Parameters:
-        service_name (str): Name of service selected.
-        distance (float): Distance in km.
-        base_fare (float): Calculated base fare.
-        surge_multiplier (float): Surge multiplier applied.
-        final_fare (float): Total final cost after promo.
-        promo_code (str): Promo code used (optional).
-    """
-    # TODO: Teammate to implement formatted receipt printing UI here.
-    pass
+    new_fare = max(current_fare - discount, 0.00)
+    actual_discount = min(discount, current_fare)
+    return round(new_fare, 2), round(actual_discount, 2), message
 
 
 # ==========================================
-# 3. HELPER INPUT VALIDATION & USER INTERFACE
+# 3. TERMINAL UI & RECEIPT PRINTER (Jaafar Jomaa)
+# ==========================================
+
+def show_welcome_banner():
+    """Print the welcome banner at the top of the program."""
+    border = "=" * WIDTH
+    print(border)
+    print("E-HAILING".center(WIDTH))
+    print("FARE & BOOKING ASSISTANT".center(WIDTH))
+    print("~ Safe. Fast. Affordable. ~".center(WIDTH))
+    print(border)
+    print()
+
+
+def show_service_menu():
+    """Display the ride options and ask the user to pick one."""
+    divider = "-" * WIDTH
+    print("SELECT YOUR RIDE".center(WIDTH))
+    print(divider)
+
+    for s_id, s_name, s_desc, base_fee, rate_per_km in SERVICES:
+        print(f" [{s_id}] {s_name:<20} {s_desc}")
+
+    print(divider)
+
+    while True:
+        choice = input(f"Enter your choice (1-{len(SERVICES)}): ").strip()
+        if choice in [s[0] for s in SERVICES]:
+            return choice
+        print("Invalid choice. Please try again.")
+
+
+def print_receipt(service_name, distance, base_fare, distance_charge,
+                  surge_amount, discount_amount, final_fare):
+    """Print a formatted itemized receipt."""
+    thick = "=" * WIDTH
+    thin = "-" * WIDTH
+
+    def row(label, value):
+        return f"{label:<{WIDTH - 20}}{value:>20}"
+
+    print("\n" + thick)
+    print("RIDE RECEIPT".center(WIDTH))
+    print(thick)
+
+    print(row("Service:", service_name))
+    print(row("Distance:", f"{distance:.1f} km"))
+    print(thin)
+
+    print(row("Base fee", money(base_fare)))
+    print(row("Distance charge", money(distance_charge)))
+
+    if surge_amount > 0:
+        print(row("Surge Charge (1.5x)", "+" + money(surge_amount)))
+    else:
+        print(row("Surge Charge (1.0x)", money(0.00)))
+
+    if discount_amount > 0:
+        print(row("Promo Discount", "-" + money(discount_amount)))
+    else:
+        print(row("Promo Discount", money(0.00)))
+
+    print(thin)
+    print(row("TOTAL FARE", money(final_fare)))
+    print(thick)
+    print("Thank you for riding with us!".center(WIDTH))
+    print(thick + "\n")
+
+
+# ==========================================
+# 4. HELPER INPUT VALIDATORS
 # ==========================================
 
 def get_valid_distance():
-    """
-    Prompts user for distance input and validates that it is a positive float.
-    """
+    """Prompts user for distance input and validates that it is a positive float."""
     while True:
         try:
             user_input = float(input("Enter trip distance in kilometers (km): "))
@@ -119,58 +180,64 @@ def get_valid_distance():
             else:
                 print("Error: Distance must be a positive number greater than 0. Please try again.\n")
         except ValueError:
-            print("Error: Invalid input! Please enter a valid numerical value for distance.\n")
+            print("Error: Invalid input! Please enter a numerical value for distance.\n")
 
 
-def get_valid_service_type():
-    """
-    Prompts user to select a service type (1, 2, or 3).
-    """
-    print("Available Service Options:")
-    print("  1. JustGrab / Economy  (Base: $3.00, Rate: $1.20/km)")
-    print("  2. GrabCar Premium     (Base: $5.00, Rate: $2.00/km)")
-    print("  3. GrabBike / Express  (Base: $2.00, Rate: $0.80/km)")
-    
+def get_peak_hour_choice():
+    """Prompts user whether it is peak hour (rush hour)."""
     while True:
-        choice = input("Select service option (1-3): ").strip()
-        if choice in ["1", "2", "3"]:
-            return choice
-        else:
-            print("Error: Invalid choice! Please select 1, 2, or 3.\n")
+        choice = input("Is it peak hour / rush hour? (y/n): ").strip().lower()
+        if choice in ['y', 'yes']:
+            return True
+        elif choice in ['n', 'no']:
+            return False
+        print("Please enter 'y' for yes or 'n' for no.\n")
 
 
 # ==========================================
-# 4. MAIN PROGRAM EXECUTION
+# 5. MAIN PROGRAM EXECUTION
 # ==========================================
 
 def main():
-    print("=======================================")
-    print("      E-HAILING FARE CALCULATOR        ")
-    print("=======================================")
-    
-    # Step 1: Input Validation for Service Selection and Distance
-    service_choice = get_valid_service_type()
+    show_welcome_banner()
+
+    # Step 1: Select Service Option
+    service_choice = show_service_menu()
+
+    # Step 2: Input Distance & Peak Hour
     print()
     distance = get_valid_distance()
+    is_peak = get_peak_hour_choice()
     
-    # Step 2: Core Base Fare Calculation
+    # Step 3: Input Promo Code
+    promo_code = input("Enter promo code (press Enter to skip): ").strip()
+
+    # Step 4: Calculate Fares
     try:
-        calculated_fare = calculate_base_fare(service_choice, distance)
+        service_name, base_fee, distance_charge, total_base = calculate_base_fare(service_choice, distance)
         
-        # Display initial results
-        service_names = {
-            "1": "JustGrab / Economy",
-            "2": "GrabCar Premium",
-            "3": "GrabBike / Express"
-        }
+        # Surge Calculation
+        surge_mult = get_surge_multiplier(is_peak)
+        fare_after_surge = total_base * surge_mult
+        surge_amount = fare_after_surge - total_base
         
-        print("\n---------------------------------------")
-        print(f"Service Selected : {service_names[service_choice]}")
-        print(f"Trip Distance    : {distance:.2f} km")
-        print(f"Calculated Fare  : ${calculated_fare:.2f}")
-        print("---------------------------------------")
-        print("Base calculation successful! Ready for teammate integration.")
-        
+        # Promo Code Calculation
+        final_fare, discount_amount, promo_msg = apply_promo_code(fare_after_surge, promo_code)
+
+        if promo_msg:
+            print(f"\n[Promo Status]: {promo_msg}")
+
+        # Step 5: Display Receipt
+        print_receipt(
+            service_name=service_name,
+            distance=distance,
+            base_fare=base_fee,
+            distance_charge=distance_charge,
+            surge_amount=surge_amount,
+            discount_amount=discount_amount,
+            final_fare=final_fare
+        )
+
     except ValueError as err:
         print(f"Calculation Error: {err}")
 
